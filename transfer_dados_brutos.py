@@ -5,21 +5,21 @@ import time
 from io import StringIO
 
 # --- CONFIGURAÇÃO ---
-# URL base sem o número da página
-BASE_URL = "https://www.transfermarkt.com.br/fc-sao-paulo/alletransfers/verein/585/ajax/yw1/page/{}"
+ANO_INICIAL = 2006
+ANO_FINAL = 2026 # Pode colocar 2025 ou 2026 para garantir
+URL_BASE = "https://www.transfermarkt.com.br/sao-paulo-fc/transfers/verein/585/plus/?saison_id={}"
+
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
 }
 
-lista_final_dfs = []
+lista_balancos = []
 
-print("--- INICIANDO COLETA DE TRANSFERÊNCIAS (HISTÓRICO COMPLETO) ---\n")
+print(f"--- INICIANDO COLETA FINANCEIRA ({ANO_INICIAL} a {ANO_FINAL}) ---\n")
 
-# Vamos percorrer 10 páginas (geralmente suficiente para ir até 1929)
-# Se o script parar antes de 1929, aumente esse número no range(1, 11)
-for pagina in range(1, 11):
-    url = BASE_URL.format(pagina)
-    print(f"Processando Página {pagina}...")
+for ano in range(ANO_INICIAL, ANO_FINAL + 1):
+    url = URL_BASE.format(ano)
+    print(f"Processando temporada: {ano}...", end="")
     
     try:
         response = requests.get(url, headers=HEADERS)
@@ -27,62 +27,58 @@ for pagina in range(1, 11):
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # O Transfermarkt organiza assim: Um Cabeçalho (H2) seguido de uma Tabela (div responsive-table)
-            # Vamos encontrar todos os boxes de tabelas
-            tabelas_html = soup.find_all("div", class_="responsive-table")
+            # Estratégia: Procurar o H2 que tem o texto "Balanço de transferências"
+            # O site costuma usar "Balanço de transferências" ou "Balanço atual"
+            titulos = soup.find_all("h2", class_="content-box-headline")
             
-            if not tabelas_html:
-                print(" -> Nenhuma tabela encontrada nesta página. Fim da paginação.")
-                break
+            tabela_encontrada = False
+            
+            for h2 in titulos:
+                texto_titulo = h2.get_text(strip=True)
                 
-            for tabela_div in tabelas_html:
-                # Tenta encontrar o título logo acima da tabela (Ex: "Entradas 20/21" ou "Saídas 20/21")
-                # As vezes o título está num 'div' anterior ou num 'h2' dentro de um box anterior
-                # O método mais seguro no Transfermarkt é pegar o 'table-header' anterior
-                
-                # Procura o box pai para achar o cabeçalho correspondente
-                box_pai = tabela_div.find_previous("div", class_="box")
-                header_text = "Desconhecido"
-                
-                if box_pai:
-                    header_element = box_pai.find("h2")
-                    if header_element:
-                        header_text = header_element.get_text(strip=True)
-                
-                # Converte o HTML da tabela para DataFrame
-                html_io = StringIO(str(tabela_div))
-                dfs = pd.read_html(html_io)
-                
-                if dfs:
-                    df_temp = dfs[0]
+                if "Balanço" in texto_titulo:
+                    # Achou o título! A tabela costuma estar no mesmo box, logo depois.
+                    # Vamos subir para o pai (box) e procurar a tabela lá dentro
+                    box_pai = h2.find_parent("div", class_="box")
                     
-                    # Adiciona a coluna vital: CONTEXTO (Ex: "Entradas 23/24")
-                    # Sem isso não saberíamos o ano nem se foi compra ou venda
-                    df_temp['CONTEXTO_TEMPORADA'] = header_text
-                    
-                    lista_final_dfs.append(df_temp)
+                    if box_pai:
+                        tabela = box_pai.find("table")
+                        
+                        if tabela:
+                            # Converte para DataFrame
+                            df_temp = pd.read_html(StringIO(str(tabela)))[0]
+                            
+                            # Adiciona a coluna do Ano para não nos perdermos depois
+                            df_temp['TEMPORADA_REF'] = ano
+                            
+                            lista_balancos.append(df_temp)
+                            tabela_encontrada = True
+                            print(" -> OK! Tabela capturada.")
+                            break # Para de procurar outros H2 na mesma página
             
-            print(f" -> {len(tabelas_html)} tabelas coletadas nesta página.")
-            
+            if not tabela_encontrada:
+                print(" -> Aviso: Tabela de balanço não encontrada nesta página.")
+                
         else:
-            print(f" -> Erro na página {pagina}: Status {response.status_code}")
+            print(f" -> Erro HTTP {response.status_code}")
             
     except Exception as e:
-        print(f" -> Erro técnico na página {pagina}: {e}")
+        print(f" -> Erro técnico: {e}")
     
-    # Pausa para não ser bloqueado
-    time.sleep(3)
+    # Pausa respeitosa para o servidor
+    time.sleep(2)
 
 # --- CONSOLIDAÇÃO ---
-if lista_final_dfs:
-    print("\nConsolidando histórico...")
-    df_bruto = pd.concat(lista_final_dfs, ignore_index=True)
+print("\n" + "="*40)
+if lista_balancos:
+    df_financeiro = pd.concat(lista_balancos, ignore_index=True)
     
-    nome_arquivo = "sao_paulo_transferencias_bruto.csv"
-    df_bruto.to_csv(nome_arquivo, sep=';', index=False, encoding='utf-8-sig')
+    nome_arquivo = "spfc_financeiro_bruto_anual.csv"
+    df_financeiro.to_csv(nome_arquivo, sep=';', index=False, encoding='utf-8-sig')
     
-    print(f"\nSUCESSO! Arquivo salvo: {nome_arquivo}")
-    print(f"Total de registros de transferências: {len(df_bruto)}")
-    print("Dica: A coluna 'CONTEXTO_TEMPORADA' conterá algo como 'Entradas 14/15'. Usaremos isso para filtrar.")
+    print(f"SUCESSO! Arquivo salvo: {nome_arquivo}")
+    print(f"Linhas capturadas: {len(df_financeiro)}")
+    print("\nAMOSTRA DOS DADOS:")
+    print(df_financeiro.head())
 else:
-    print("\nFalha: Nada foi coletado.")
+    print("Falha: Nenhuma tabela foi capturada.")
