@@ -70,6 +70,21 @@ Utilização de One-Hot Encoding para medir o impacto de cada gestão nas vitór
 * Barra Vermelha (Coeficiente Negativo): O gráfico revela que a gestão Casares mantém uma correlação negativa com a probabilidade de vitória quando comparada ao Baseline histórico.
 * Interpretação: Estatisticamente, o time atual ainda joga "abaixo da régua" estabelecida na década de 2000. Embora tenha reduzido a ineficiência brutal da era Leco, a gestão atual não conseguiu cruzar a fronteira para o impacto positivo (barra verde).
 * Risco de Mediocridade: Cruzando com os dados financeiros, vemos um "Custo por Ponto" baixo. Porém, associado a um impacto de vitória negativo, isso indica um risco de o clube estar se acomodando em ser "barato e competitivo apenas para meio de tabela", longe da dominância que o torcedor (e o baseline de Juvenal) exige.
+
+### 5. O "Efeito Casares": Análise de Probabilidade (Regressão Logística)
+Para mitigar vieses de percepção, apliquei um modelo de Regressão Logística calculando a Odds Ratio (Razão de Chances). O objetivo foi medir se a probabilidade de vitória da gestão atual difere estatisticamente do padrão de excelência histórico (Era Juvenal / Baseline).
+
+📉 **O Resultado Estatístico:** O modelo apontou uma Odds Ratio de 0.75 para a gestão Julio Casares.
+
+* Intervalo de Confiança (95%): 0.57 — 0.97
+
+* P-valor (Significância): 0.031
+
+**Interpretando o Dado:** Como o P-valor é 0.031 (p < 0.05), rejeitamos a hipótese de equivalência. Matematicamente, confirma-se com 95% de confiança que o *São Paulo FC*, sob a gestão atual, tem 25,4% menos chances de vencer uma partida do que tinha durante a "Era Soberana" (2006-2008), mantendo as outras variáveis constantes.
+
+### Conclusão de Negócio: 
+* Os dados revelam uma "estabilização na mediocridade". Embora a gestão Casares (OR 0.75) tenha estancado a sangria de ineficiência da gestão Leco (OR 0.67), ela ainda opera estatisticamente com um déficit de performance competitivo, não tendo conseguido retomar a hegemonia de outrora. A "reconstrução" financeira, portanto, ainda não se traduziu em eficiência de vitória no campo.
+
 ---
 
 ## 🛠️ Stack Tecnológico e Metodologia
